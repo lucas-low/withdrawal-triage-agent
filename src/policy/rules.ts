@@ -76,6 +76,22 @@ export const RULES: Rule[] = [
     },
   },
   {
+    id: "CHAIN_DATA_UNAVAILABLE",
+    description: "Chain analytics could not answer, so the address was not checked.",
+    evaluate: ({ addressRisk }) =>
+      addressRisk.status === "unavailable"
+        ? finding("CHAIN_DATA_UNAVAILABLE", "hold", "Chain data provider unavailable; address not checked.", { source: addressRisk.source })
+        : null,
+  },
+  {
+    id: "INVALID_ADDRESS",
+    description: "Destination is not a well-formed address.",
+    evaluate: ({ addressRisk }) =>
+      addressRisk.status === "invalid"
+        ? finding("INVALID_ADDRESS", "hold", "Destination address is malformed.", { address: addressRisk.address })
+        : null,
+  },
+  {
     id: "FLAGGED_ADDRESS",
     description: "Destination address is flagged by chain analytics.",
     evaluate: ({ addressRisk }) =>

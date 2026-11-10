@@ -1,5 +1,6 @@
 import { SqliteAuditLog } from "./adapters/audit";
 import { MockChainClient } from "./adapters/chain.mock";
+import { loadSanctionList, OnchainChainClient } from "./adapters/chain.onchain";
 import { openDatabase, SqliteStore } from "./adapters/sqlite";
 import { consoleSink, createTracer, OtlpSink, SqliteSpanSink } from "./adapters/tracer";
 import { createModel, createScreenModel } from "./agent/models";
@@ -8,6 +9,7 @@ import { fixedClock } from "./clock";
 import type { Config } from "./config";
 import { combineScreens, heuristicScreen, llmScreen } from "./guardrails/note-screen";
 import type { PolicyConfig } from "./policy/rules";
+import type { ChainClient } from "./ports";
 import { type Clock, systemClock, type Tracer } from "./ports";
 import { ReviewService } from "./workflow/review";
 
@@ -15,6 +17,7 @@ export interface Overrides {
   clock?: Clock;
   tracer?: Tracer;
   policy?: PolicyConfig;
+  chain?: ChainClient;
   dbPath?: string;
 }
 
@@ -25,7 +28,11 @@ export function createApp(config: Config, o: Overrides = {}) {
   const db = openDatabase(o.dbPath ?? config.dbPath);
   const store = new SqliteStore(db, nowIso);
   const audit = new SqliteAuditLog(db, nowIso);
-  const chain = new MockChainClient();
+  const chain =
+    o.chain ??
+    (config.chainProvider === "onchain"
+      ? new OnchainChainClient(loadSanctionList(config.ofacListPath), { url: config.ethRpcUrl })
+      : new MockChainClient());
   const sinks = [new SqliteSpanSink(db)];
   if (config.logLevel === "debug") sinks.push(consoleSink() as never);
   if (config.otlpEndpoint) sinks.push(new OtlpSink(config.otlpEndpoint, config.otlpHeaders) as never);

@@ -21,6 +21,7 @@ Usage: bun run cli <command> [options]
   review --as <reviewer>        walk the pending proposals and approve or reject each
   decide <proposalId> <approve|reject> --as <reviewer> [--comment "..."]
   show <proposalId>             proposal detail and its audit trail
+  chain <address>               what the chain client reports (OFAC list + on-chain facts when CHAIN_PROVIDER=onchain)
   trace <proposalId|traceId>    span tree with timings, token use and errors
   audit verify                  check the hash chain
   expire                        mark overdue proposals expired
@@ -120,6 +121,13 @@ async function main() {
           ...app.audit.list({ proposalId: p.id }).map((r) => [String(r.seq), r.ts, r.kind, r.actor]),
         ]),
       );
+      return;
+    }
+    case "chain": {
+      if (!rest[0]) throw new AppError("invalid_request", "usage: chain <address>");
+      const { OnchainChainClient, loadSanctionList } = await import("../adapters/chain.onchain");
+      const client = new OnchainChainClient(loadSanctionList(config.ofacListPath), { url: config.ethRpcUrl });
+      console.log(JSON.stringify(await client.addressRisk(rest[0]), null, 2));
       return;
     }
     case "trace": {

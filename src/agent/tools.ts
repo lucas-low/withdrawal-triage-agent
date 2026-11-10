@@ -103,6 +103,10 @@ export function buildTools(ctx: RunContext) {
           flagged: risk.flagged,
           labels: risk.labels,
           usedBefore: ctx.repo.hasCompletedTo(w.accountId, w.address, w.id),
+          status: risk.status,
+          ...(risk.facts
+            ? { isContract: risk.facts.isContract, delegatedEoa: Boolean(risk.facts.delegatedTo), txCount: risk.facts.txCount }
+            : {}),
         });
       },
     }),

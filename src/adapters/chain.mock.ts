@@ -11,6 +11,6 @@ export class MockChainClient implements ChainClient {
 
   async addressRisk(address: string): Promise<AddressRisk> {
     const labels = this.flagged[address.toLowerCase()] ?? [];
-    return { address, flagged: labels.length > 0, labels, source: "mock-chain-intel" };
+    return { address, flagged: labels.length > 0, labels, source: "mock-chain-intel", status: "ok" };
   }
 }

@@ -31,6 +31,10 @@ const EnvSchema = z.object({
   /** Model name for the quarantined note classifier. Defaults to MODEL. Mock provider uses a scripted classifier. */
   SCREEN_MODEL: z.string().optional(),
   MOCK_SCREEN_BEHAVIOR: z.enum(["blind", "paranoid", "heuristic"]).default("heuristic"),
+  /** mock: offline fixtures. onchain: OFAC list plus a public Ethereum RPC. */
+  CHAIN_PROVIDER: z.enum(["mock", "onchain"]).default("mock"),
+  ETH_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
+  OFAC_LIST_PATH: z.string().default("data/ofac-eth.txt"),
   LOG_LEVEL: z.enum(["silent", "info", "debug"]).default("info"),
 });
 
@@ -50,6 +54,9 @@ export interface Config {
   fourEyesThresholdUsd: number;
   logLevel: "silent" | "info" | "debug";
   clockPin?: string;
+  chainProvider: "mock" | "onchain";
+  ethRpcUrl: string;
+  ofacListPath: string;
   noteHandling: "quarantine" | "passthrough";
   screenModel?: string;
   mockScreenBehavior: "blind" | "paranoid" | "heuristic";
@@ -102,6 +109,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fourEyesThresholdUsd: e.FOUR_EYES_THRESHOLD_USD,
     logLevel: e.LOG_LEVEL,
     clockPin: e.CLOCK_PIN,
+    chainProvider: e.CHAIN_PROVIDER,
+    ethRpcUrl: e.ETH_RPC_URL,
+    ofacListPath: e.OFAC_LIST_PATH,
     noteHandling: e.NOTE_HANDLING,
     screenModel: e.SCREEN_MODEL,
     mockScreenBehavior: e.MOCK_SCREEN_BEHAVIOR,

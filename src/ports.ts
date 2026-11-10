@@ -87,11 +87,24 @@ export interface AuditLog {
   verify(): AuditVerification;
 }
 
+export interface AddressFacts {
+  /** True for deployed contract code. An EIP-7702 delegated EOA is not a contract. */
+  isContract: boolean;
+  /** Set when the account is an EOA delegating to code via EIP-7702 (code is 0xef0100 + address). */
+  delegatedTo?: string;
+  /** Outgoing transaction count (nonce). Zero for an address that has never sent anything. */
+  txCount: number;
+  balanceWei: string;
+}
+
 export interface AddressRisk {
   address: string;
   flagged: boolean;
   labels: string[];
   source: string;
+  /** ok: answered. unavailable: provider failed. invalid: not a well-formed address. Policy fails closed on the last two. */
+  status: "ok" | "unavailable" | "invalid";
+  facts?: AddressFacts;
 }
 
 export interface ChainClient {
