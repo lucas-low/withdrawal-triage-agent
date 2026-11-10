@@ -24,7 +24,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "check": "bun run typecheck && bun run lint && bun test && bun run eval"
+    "check": "bun run typecheck && bun run lint && bun test && bun run eval",
+    "obs:up": "deploy/compose.sh up -d",
+    "obs:down": "deploy/compose.sh down"
   },
   "bin": {
     "withdrawal-triage": "src/cli/index.ts"

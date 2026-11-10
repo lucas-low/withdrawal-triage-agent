@@ -79,6 +79,7 @@ async function main() {
         const { proposal, reused } = await app.triage.triage(id, process.env.USER ?? "cli");
         console.log(`${formatProposal(proposal)}${reused ? dim("\n  (existing open proposal)") : ""}\n`);
       }
+      await app.tracer.flush();
       return;
     }
     case "review": {

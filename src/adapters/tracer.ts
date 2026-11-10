@@ -153,9 +153,14 @@ export class OtlpSink implements SpanSink {
       body: JSON.stringify(body),
     }).catch(() => undefined);
     this.pending.push(p);
+    // Drop settled sends so a long-running server does not accumulate them.
+    p.finally(() => {
+      const i = this.pending.indexOf(p);
+      if (i !== -1) this.pending.splice(i, 1);
+    });
   }
 
   async flush() {
-    await Promise.allSettled(this.pending.splice(0));
+    await Promise.allSettled([...this.pending]);
   }
 }
