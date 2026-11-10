@@ -4,6 +4,7 @@ import { parseArgs } from "node:util";
 import { loadTrace } from "../adapters/tracer";
 import { loadConfig } from "../config";
 import { createApp } from "../container";
+import { ensureDemoData } from "../demo";
 import { AppError } from "../domain/errors";
 import type { Principal } from "../domain/types";
 import { seed } from "../seed";
@@ -163,6 +164,7 @@ async function main() {
     case "expire":
       return console.log(`Expired ${app.review.expireOverdue()} proposal(s).`);
     case "serve": {
+      if (config.demoMode) ensureDemoData(app);
       const server = Bun.serve({ port: config.port, fetch: createHandler(app) });
       console.log(
         `Review console on http://localhost:${server.port}  (model: ${config.modelProvider === "mock" ? `mock/${config.mockBehavior}` : config.model})`,

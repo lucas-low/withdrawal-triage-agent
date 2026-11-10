@@ -30,7 +30,8 @@
     "langfuse:up": "deploy/langfuse-up.sh",
     "langfuse:down": "deploy/compose.sh -p langfuse --env-file deploy/langfuse.env -f deploy/langfuse.compose.upstream.yaml -f deploy/langfuse.override.yaml down",
     "redteam": "bun run evals/redteam.ts",
-    "data:ofac": "bun run scripts/fetch-ofac.ts"
+    "data:ofac": "bun run scripts/fetch-ofac.ts",
+    "docker:app": "deploy/compose.sh --profile app up -d --build app"
   },
   "bin": {
     "withdrawal-triage": "src/cli/index.ts"

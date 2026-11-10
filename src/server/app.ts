@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { App } from "../container";
+import { resetDemo } from "../demo";
 import { AppError } from "../domain/errors";
 import { DecisionInputSchema, type Principal, type ProposalStatus, type Role } from "../domain/types";
 import { RateLimiter } from "./ratelimit";
@@ -54,6 +55,16 @@ export function createHandler(app: App, opts: { triageLimitPerMinute?: number } 
   }
 
   const routes: Route[] = [
+    {
+      method: "POST",
+      pattern: /^\/v1\/demo\/reset$/,
+      handle: ({ principal }) => {
+        if (!app.config.demoMode) throw new AppError("not_found", "no route for POST /v1/demo/reset");
+        requireRole(principal, "operator");
+        resetDemo(app);
+        return json(200, { ok: true });
+      },
+    },
     {
       method: "GET",
       pattern: /^\/v1\/withdrawals$/,
@@ -124,7 +135,12 @@ export function createHandler(app: App, opts: { triageLimitPerMinute?: number } 
     const url = new URL(req.url);
     const { pathname: path } = url;
 
-    if (req.method === "GET" && path === "/healthz") return json(200, { ok: true });
+    if (req.method === "GET" && path === "/healthz")
+      return json(200, {
+        ok: true,
+        demo: app.config.demoMode,
+        model: app.config.modelProvider === "mock" ? `mock/${app.config.mockBehavior}` : app.config.model,
+      });
     if (req.method === "GET" && path === "/") {
       return new Response(UI_HTML, {
         headers: {

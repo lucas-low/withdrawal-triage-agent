@@ -37,6 +37,11 @@ const EnvSchema = z.object({
   OFAC_LIST_PATH: z.string().default("data/ofac-eth.txt"),
   /** Give the agent a findSimilarCases tool over past reviewer decisions. */
   RETRIEVAL_ENABLED: z.enum(["true", "false"]).default("true"),
+  /** Public demo: seeds sample data on first start and allows POST /v1/demo/reset. Sample data and mock model only. */
+  DEMO_MODE: z.enum(["true", "false"]).default("false"),
+  /** Set to true to start in production with the built-in dev API keys. Refused otherwise. */
+  ALLOW_DEV_KEYS: z.enum(["true", "false"]).default("false"),
+  NODE_ENV: z.string().optional(),
   LOG_LEVEL: z.enum(["silent", "info", "debug"]).default("info"),
 });
 
@@ -56,6 +61,7 @@ export interface Config {
   fourEyesThresholdUsd: number;
   logLevel: "silent" | "info" | "debug";
   clockPin?: string;
+  demoMode: boolean;
   retrievalEnabled: boolean;
   chainProvider: "mock" | "onchain";
   ethRpcUrl: string;
@@ -96,6 +102,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (e.MODEL_PROVIDER === "anthropic" && !e.ANTHROPIC_API_KEY) {
     fail("config", "MODEL_PROVIDER=anthropic requires ANTHROPIC_API_KEY");
   }
+  const usesDevKeys = [...parseApiKeys(e.API_KEYS).keys()].some((k) => k.startsWith("dev-"));
+  if (e.NODE_ENV === "production" && usesDevKeys && e.ALLOW_DEV_KEYS !== "true" && e.DEMO_MODE !== "true") {
+    fail(
+      "config",
+      "refusing to start in production with the built-in dev API keys. Set API_KEYS, or DEMO_MODE=true for a sample-data demo.",
+    );
+  }
   return {
     modelProvider: e.MODEL_PROVIDER,
     ollamaUrl: e.OLLAMA_URL,
@@ -112,6 +125,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fourEyesThresholdUsd: e.FOUR_EYES_THRESHOLD_USD,
     logLevel: e.LOG_LEVEL,
     clockPin: e.CLOCK_PIN,
+    demoMode: e.DEMO_MODE === "true",
     retrievalEnabled: e.RETRIEVAL_ENABLED === "true",
     chainProvider: e.CHAIN_PROVIDER,
     ethRpcUrl: e.ETH_RPC_URL,

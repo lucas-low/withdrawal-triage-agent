@@ -22,7 +22,7 @@ ul{margin:8px 0;padding-left:20px}code{font-size:13px}
 <header><h1>Withdrawal review</h1>
 <label class="row"><span class="muted">API key</span><input id="key" type="password" autocomplete="off" placeholder="Bearer token"></label>
 <button id="load" class="primary">Load queue</button><button id="verify">Verify audit chain</button></header>
-<div id="msg" role="status" aria-live="polite" class="muted"></div><div id="list"></div>
+<div id="demo" class="card" hidden></div><div id="msg" role="status" aria-live="polite" class="muted"></div><div id="list"></div>
 <script>
 const $=s=>document.querySelector(s);const msg=t=>{$('#msg').textContent=t};
 const keyEl=$('#key');try{keyEl.value=sessionStorage.getItem('k')||''}catch{}
@@ -44,5 +44,6 @@ function card(p){
 }
 async function load(){try{sessionStorage.setItem('k',keyEl.value)}catch{}
  try{const {proposals}=await api('/v1/proposals?status=pending');const l=$('#list');l.replaceChildren(...(proposals.length?proposals.map(card):[el('p',{className:'muted',textContent:'Nothing pending.'})]));msg(proposals.length+' pending')}catch(e){msg(e.message)}}
+fetch('/healthz').then(r=>r.json()).then(h=>{if(h.demo){const d=$('#demo');d.hidden=false;d.textContent='Demo: sample data and a '+h.model+' model. Nothing here is real. Use key dev-alice or dev-bob to review, dev-operator to triage a withdrawal and reset the demo.'}}).catch(()=>{});
 $('#load').onclick=load;$('#verify').onclick=async()=>{try{const v=await api('/v1/audit/verify');msg(v.ok?'Audit chain intact ('+v.checked+' records).':'AUDIT CHAIN BROKEN at record '+v.brokenAtSeq)}catch(e){msg(e.message)}};
 </script></main></body></html>`;

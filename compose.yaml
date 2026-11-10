@@ -9,3 +9,18 @@ services:
       - "16686:16686" # UI
       - "4318:4318"   # OTLP/HTTP, what OTLP_ENDPOINT=http://localhost:4318 points at
     restart: unless-stopped
+
+  # The app itself as a container: `deploy/compose.sh --profile app up -d --build`, then http://localhost:3000
+  app:
+    profiles: ["app"]
+    build: .
+    environment:
+      DEMO_MODE: "true"
+      MODEL_PROVIDER: "mock"
+    ports:
+      - "3000:3000"
+    volumes:
+      - triage_data:/data
+
+volumes:
+  triage_data:
