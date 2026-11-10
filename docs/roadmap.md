@@ -1,6 +1,6 @@
 # Roadmap
 
-Built and tested offline: policy engine, agent loop, guardrails, review workflow, audit chain, HTTP API, review console, CLI, evals, CI.
+Built and tested: policy engine, agent loop, quarantined note classifier, retrieval over past decisions, real public chain data (OFAC list and Ethereum JSON-RPC), review workflow, hash-chained audit, HTTP API, review console, CLI, tracing to SQLite, Jaeger and Langfuse, red-team and eval suites, container image, demo mode, CI.
 
 Not built yet, in rough order:
 

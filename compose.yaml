@@ -17,6 +17,7 @@ services:
     environment:
       DEMO_MODE: "true"
       MODEL_PROVIDER: "mock"
+      CLOCK_PIN: "2026-11-10T03:00:00.000Z" # keeps the sample data consistent with the clock
     ports:
       - "3000:3000"
     volumes:
