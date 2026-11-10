@@ -4,7 +4,7 @@ Built and tested: policy engine, agent loop, quarantined note classifier, retrie
 
 Not built yet, in rough order:
 
-1. **Record local-model results.** Run `MODEL_PROVIDER=ollama bun run eval -- --live --models ... --runs 3`, put the table in `docs/evals.md`, and tune the prompt where the agent alone misses.
+1. **Raise the live eval sample size** (more runs, more cases) and add a hosted model for comparison. Local-model results are recorded in `docs/evals.md`. Investigate why `aya-expanse` ignores a forced `proposeAction`, and tune the note classifier to cut its 25% benign false-positive rate.
 2. **Point OTLP at Langfuse.** The exporter is verified against Jaeger. Langfuse needs its own multi-service stack and has not been run yet.
 3. **Real chain data.** Replace `MockChainClient` with a provider adapter and add retry and caching. Decide what the policy does when the provider is down (currently the call would throw and fail the triage).
 4. **Anchor the audit chain.** Periodically publish the head hash somewhere the database admin cannot rewrite.

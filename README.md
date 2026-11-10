@@ -54,15 +54,15 @@ Container and tracing backends: see [docs/deploy.md](docs/deploy.md).
 | Agent reads the note, regex screen only | 16 |
 | Agent never reads the note, classifier always answers "safe" | 0 |
 
-Details and the decision record: [ADR 0006](docs/decisions/0006-quarantine-untrusted-text.md), [docs/evals.md](docs/evals.md).
+A live `qwen2.5:32b` also resisted all 50 attacks when it could read them, so quarantine adds a structural guarantee, not a fix for an observed failure on that model. The cost is real: the classifier flagged 4 of 16 benign notes, which means extra manual reviews. Details: [ADR 0006](docs/decisions/0006-quarantine-untrusted-text.md), [docs/evals.md](docs/evals.md).
 
 **Retrieval catches what rules cannot.** One sample case passes every rule, but reviewers rejected five near-identical releases. Without retrieval it is released, with retrieval it is held. The ablation is an eval gate.
 
 **Real data found a real bug.** A live check against mainnet showed vitalik.eth's address returning contract code. It is an EIP-7702 delegated account, an ordinary EOA. The client now handles that case.
 
-**A model failure mode, found by running local models.** `aya-expanse:32b` gathered all four facts and then answered in prose without ever calling `proposeAction`. Every proposal fell back to the fail-closed path. A single forced follow-up turn addresses it.
+**A model failure mode, found by running local models.** `aya-expanse:32b` gathers all four facts and then answers in prose without ever calling `proposeAction`, even when the tool call is forced. Every proposal falls back to the fail-closed path, so the system stayed safe (70% final accuracy, 0 safety violations) while the model itself scored 0%.
 
-Offline results test the harness and the guardrails, not a real model's judgment. Live numbers are in [docs/evals.md](docs/evals.md).
+Local-model results (Ollama, M2 Max, small samples): `qwen2.5:32b` 100% final and 80% agent alone with 0 safety violations, `qwen2.5:14b` 90% and 70%, retrieval on versus off 100% versus 90% on the 32B model. Offline results test the harness and guardrails, not a model's judgment. Full tables and caveats: [docs/evals.md](docs/evals.md).
 
 ## Commands
 
