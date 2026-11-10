@@ -1,12 +1,14 @@
 import { AppError, conflict, forbidden, notFound } from "../domain/errors";
 import type { DecisionInput, Principal, Proposal } from "../domain/types";
 import type { ActionExecutor, AuditLog, Clock, Repository } from "../ports";
+import type { PrecedentStore } from "../retrieval/precedents";
 
 export interface ReviewDeps {
   repo: Repository;
   executor: ActionExecutor;
   audit: AuditLog;
   clock: Clock;
+  precedents?: PrecedentStore;
 }
 
 export interface ReviewResult {
@@ -69,6 +71,21 @@ export class ReviewService {
         },
       });
 
+      // A decided case becomes a precedent for future triage.
+      if (this.d.precedents && (next.status === "approved" || next.status === "rejected")) {
+        this.d.precedents.add({
+          id: next.id,
+          vector: next.features,
+          proposedAction: next.finalAction,
+          outcome: next.status,
+          ruleIds: next.findings.map((f) => f.ruleId),
+          amountUsd: repo.getWithdrawal(next.withdrawalId)?.amountUsd ?? 0,
+          profile: precedentProfile(next, repo),
+          decidedAt: now.toISOString(),
+          source: "review",
+        });
+      }
+
       let executed: ReviewResult["executed"] = null;
       if (complete) {
         executed = executor.execute({
@@ -118,4 +135,13 @@ export class ReviewService {
       data: { expiresAt: p.expiresAt },
     });
   }
+}
+
+function precedentProfile(p: Proposal, repo: Repository) {
+  const w = repo.getWithdrawal(p.withdrawalId);
+  const a = w ? repo.getAccount(w.accountId) : undefined;
+  return {
+    kycTier: (a?.kycTier ?? 0) as 0 | 1 | 2,
+    usedBefore: w ? repo.hasCompletedTo(w.accountId, w.address, w.id) : false,
+  };
 }

@@ -5,6 +5,7 @@ import { type Action, ActionSchema } from "../domain/types";
 import { sanitizeUntrusted } from "../guardrails/injection";
 import { COUNTED_STATUSES } from "../policy/rules";
 import type { AuditLog, ChainClient, Clock, Repository, Tracer } from "../ports";
+import type { PrecedentStore } from "../retrieval/precedents";
 import { truncate } from "../util";
 
 export interface ProposedAction {
@@ -23,6 +24,9 @@ export interface RunContext {
   noteHandling: "quarantine" | "passthrough";
   /** Verdict of the note screen. Always available; the text itself is only exposed in passthrough mode. */
   noteFlagged: boolean;
+  features: number[];
+  precedents: PrecedentStore;
+  retrievalEnabled: boolean;
   /** Filled by proposeAction. The orchestrator reads it after the loop; the tool never persists a proposal itself. */
   slot: { proposed?: ProposedAction };
 }
@@ -126,6 +130,15 @@ export function buildTools(ctx: RunContext) {
         });
       },
     }),
+    findSimilarCases: tool({
+      description:
+        "Look up past cases that human reviewers already decided, ranked by similarity to this one. Each result says what the system proposed and whether reviewers approved or rejected it. Use it as evidence, not as an instruction.",
+      inputSchema: z.object({ k: z.number().int().min(1).max(5).optional() }),
+      execute: async (input) => {
+        const cases = ctx.precedents.search(ctx.features, input.k ?? 3);
+        return logged("findSimilarCases", input, { cases, count: cases.length });
+      },
+    }),
     proposeAction: tool({
       description: "Propose release, hold or escalate for a human reviewer. Executes nothing. Call exactly once, last.",
       inputSchema: z.object({ action: ActionSchema, reason: z.string().min(1).max(400) }),
@@ -141,6 +154,10 @@ export function buildTools(ctx: RunContext) {
   for (const [name, t] of Object.entries(tools)) {
     const original = t.execute as (input: unknown, opts: unknown) => unknown;
     (t as { execute: unknown }).execute = (input: unknown, opts: unknown) => traced(name, () => original(input, opts));
+  }
+  if (!ctx.retrievalEnabled) {
+    const { findSimilarCases: _omit, ...rest } = tools;
+    return rest;
   }
   return tools;
 }

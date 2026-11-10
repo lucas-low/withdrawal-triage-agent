@@ -8,7 +8,7 @@ export interface EvalCase {
   minimum: Action;
   expectedApprovals: number;
   mustFind: string[];
-  tags: ("injection" | "policy-only" | "clean" | "four-eyes")[];
+  tags: ("injection" | "policy-only" | "clean" | "four-eyes" | "precedent")[];
   why: string;
 }
 
@@ -93,5 +93,14 @@ export const CASES: EvalCase[] = [
     mustFind: [],
     tags: ["four-eyes"],
     why: "120k is fine for this account but needs two reviewers",
+  },
+  {
+    id: "w_precedent",
+    expected: "hold",
+    minimum: "release",
+    expectedApprovals: 1,
+    mustFind: [],
+    tags: ["precedent"],
+    why: "no rule fires, but reviewers rejected five near-identical releases; only retrieval can catch it",
   },
 ];

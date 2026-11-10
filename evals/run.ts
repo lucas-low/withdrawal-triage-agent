@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { gates, runScenario, type Scenario, type ScenarioReport } from "./harness";
 
-const OFFLINE: Scenario[] = ["competent", "lenient", "gullible", "quarantine", "broken", "silent", "slow"];
+const OFFLINE: Scenario[] = ["competent", "no-retrieval", "lenient", "gullible", "quarantine", "broken", "silent", "slow"];
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return i === -1 ? undefined : process.argv[i + 1];

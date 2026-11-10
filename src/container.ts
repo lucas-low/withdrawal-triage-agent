@@ -11,6 +11,7 @@ import { combineScreens, heuristicScreen, llmScreen } from "./guardrails/note-sc
 import type { PolicyConfig } from "./policy/rules";
 import type { ChainClient } from "./ports";
 import { type Clock, systemClock, type Tracer } from "./ports";
+import { SqlitePrecedentStore } from "./retrieval/precedents";
 import { ReviewService } from "./workflow/review";
 
 export interface Overrides {
@@ -47,7 +48,10 @@ export function createApp(config: Config, o: Overrides = {}) {
           llmScreen(createScreenModel(config), { temperature: config.temperature, timeoutMs: config.agentTimeoutMs }),
         )
       : heuristicScreen;
+  const precedents = new SqlitePrecedentStore(db);
   const triage = new TriageService({
+    precedents,
+    retrievalEnabled: config.retrievalEnabled,
     policy: o.policy,
     screen,
     noteHandling: config.noteHandling,
@@ -60,8 +64,8 @@ export function createApp(config: Config, o: Overrides = {}) {
     modelName: name,
     config,
   });
-  const review = new ReviewService({ repo: store, executor: store, audit, clock });
-  return { config, db, store, audit, triage, review, clock, tracer: tracerImpl };
+  const review = new ReviewService({ repo: store, executor: store, audit, clock, precedents });
+  return { config, db, store, precedents, audit, triage, review, clock, tracer: tracerImpl };
 }
 
 export type App = ReturnType<typeof createApp>;

@@ -35,6 +35,8 @@ const EnvSchema = z.object({
   CHAIN_PROVIDER: z.enum(["mock", "onchain"]).default("mock"),
   ETH_RPC_URL: z.string().url().default("https://ethereum-rpc.publicnode.com"),
   OFAC_LIST_PATH: z.string().default("data/ofac-eth.txt"),
+  /** Give the agent a findSimilarCases tool over past reviewer decisions. */
+  RETRIEVAL_ENABLED: z.enum(["true", "false"]).default("true"),
   LOG_LEVEL: z.enum(["silent", "info", "debug"]).default("info"),
 });
 
@@ -54,6 +56,7 @@ export interface Config {
   fourEyesThresholdUsd: number;
   logLevel: "silent" | "info" | "debug";
   clockPin?: string;
+  retrievalEnabled: boolean;
   chainProvider: "mock" | "onchain";
   ethRpcUrl: string;
   ofacListPath: string;
@@ -109,6 +112,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fourEyesThresholdUsd: e.FOUR_EYES_THRESHOLD_USD,
     logLevel: e.LOG_LEVEL,
     clockPin: e.CLOCK_PIN,
+    retrievalEnabled: e.RETRIEVAL_ENABLED === "true",
     chainProvider: e.CHAIN_PROVIDER,
     ethRpcUrl: e.ETH_RPC_URL,
     ofacListPath: e.OFAC_LIST_PATH,

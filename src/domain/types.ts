@@ -69,6 +69,8 @@ export interface Proposal {
   approvals: Approval[];
   model: string;
   promptVersion: string;
+  /** Case vector used for retrieval, kept so the decided case can become a precedent. */
+  features: number[];
   steps: number;
   tokens: number | null;
   traceId: string;

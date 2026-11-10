@@ -6,8 +6,10 @@ import type { Proposal } from "../domain/types";
 import type { NoteScreen } from "../guardrails/note-screen";
 import { resolve } from "../guardrails/resolve";
 import { evaluatePolicy } from "../policy/engine";
-import { DEFAULT_POLICY, type PolicyConfig } from "../policy/rules";
+import { COUNTED_STATUSES, DEFAULT_POLICY, type PolicyConfig } from "../policy/rules";
 import type { AuditLog, ChainClient, Clock, Repository, Tracer } from "../ports";
+import { caseVector, inputsFromCase } from "../retrieval/features";
+import type { PrecedentStore } from "../retrieval/precedents";
 import { newId, truncate } from "../util";
 import { NUDGE, PROMPT_VERSION, systemPrompt, userPrompt } from "./prompt";
 import { buildTools, type RunContext } from "./tools";
@@ -24,6 +26,8 @@ export interface TriageDeps {
   policy?: PolicyConfig;
   screen: NoteScreen;
   noteHandling: "quarantine" | "passthrough";
+  precedents: PrecedentStore;
+  retrievalEnabled: boolean;
 }
 
 export interface TriageResult {
@@ -113,10 +117,29 @@ export class TriageService {
       data: { floor: verdict.floor, findings: verdict.findings },
     });
 
+    // Case vector for retrieval. Built from the same facts the policy used.
+    const features = caseVector(
+      inputsFromCase({
+        withdrawal,
+        account,
+        recent24h,
+        addressRisk: await chain.addressRisk(withdrawal.address),
+        addressUsedBefore: repo.hasCompletedTo(account.id, withdrawal.address, withdrawal.id),
+        noteFlagged: noteVerdict.detected,
+        findings: verdict.findings,
+        floor: verdict.floor,
+        now,
+        countedStatuses: COUNTED_STATUSES,
+      }),
+    );
+
     // 2. The agent loop, bounded by step count and wall clock. Failure is a normal outcome, not an exception.
     const ctx: RunContext = {
       noteHandling: this.d.noteHandling,
       noteFlagged: noteVerdict.detected,
+      features,
+      precedents: this.d.precedents,
+      retrievalEnabled: this.d.retrievalEnabled,
       withdrawalId,
       traceId,
       repo,
@@ -145,7 +168,7 @@ export class TriageService {
         async (agentSpan) => {
           const r = await generateText({
             model: this.d.model,
-            system: systemPrompt(this.d.noteHandling),
+            system: systemPrompt(this.d.noteHandling, this.d.retrievalEnabled),
             prompt: userPrompt(withdrawalId),
             tools: buildTools(ctx),
             stopWhen: stepCountIs(config.agentMaxSteps),
@@ -177,7 +200,7 @@ export class TriageService {
           () =>
             generateText({
               model: this.d.model,
-              system: systemPrompt(this.d.noteHandling),
+              system: systemPrompt(this.d.noteHandling, this.d.retrievalEnabled),
               messages: [
                 { role: "user", content: userPrompt(withdrawalId) },
                 ...result.steps.flatMap((st) => st.response.messages),
@@ -233,6 +256,7 @@ export class TriageService {
       approvals: [],
       model: this.d.modelName,
       promptVersion: PROMPT_VERSION,
+      features,
       steps,
       tokens,
       traceId,

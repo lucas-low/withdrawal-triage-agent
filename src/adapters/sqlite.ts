@@ -35,6 +35,10 @@ const MIGRATIONS: string[] = [
      start_ms REAL NOT NULL, duration_ms REAL NOT NULL, status TEXT NOT NULL, attrs TEXT NOT NULL
    );
    CREATE INDEX idx_spans_trace ON spans(trace_id, start_ms);`,
+  `CREATE TABLE precedents (
+     id TEXT PRIMARY KEY, vector TEXT NOT NULL, proposed_action TEXT NOT NULL, outcome TEXT NOT NULL,
+     rule_ids TEXT NOT NULL, amount_usd REAL NOT NULL, profile TEXT NOT NULL, decided_at TEXT NOT NULL, source TEXT NOT NULL
+   );`,
 ];
 
 export function openDatabase(path: string): Database {

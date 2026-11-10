@@ -8,6 +8,7 @@ type Facts = {
   account?: { kycTier: number; ageDays: number; country: string; dailyLimitUsd: number };
   address?: { flagged: boolean; labels: string[]; usedBefore: boolean };
   activity?: { countLastHour: number; totalLast24hUsd: number };
+  precedents?: { cases?: { similarity: number; proposedAction: string; outcome: string }[] };
 };
 
 /** Pulls tool outputs out of the prompt history regardless of how the SDK wraps them. */
@@ -23,6 +24,8 @@ function toolResults(prompt: unknown[]): Record<string, any> {
   }
   return out;
 }
+
+const hasTool = (options: { tools?: { name?: string }[] }, name: string) => Boolean(options.tools?.some((t) => t.name === name));
 
 const usage = {
   inputTokens: { total: 100, noCache: 100, cacheRead: 0, cacheWrite: 0 },
@@ -50,6 +53,10 @@ function judge(f: Facts, behavior: MockBehavior): { action: Action; reason: stri
   if (f.account && total > f.account.dailyLimitUsd) return { action: "hold", reason: "Over the daily limit." };
   if (f.account && f.account.ageDays < 7 && (f.withdrawal?.amountUsd ?? 0) > 1000)
     return { action: "hold", reason: "New account, large amount." };
+  const top = f.precedents?.cases?.[0];
+  if (top && top.outcome === "rejected" && top.proposedAction === "release" && top.similarity >= 0.95) {
+    return { action: "hold", reason: "Reviewers rejected a near-identical release before." };
+  }
   return { action: "release", reason: "Within limits, known address, no flags." };
 }
 
@@ -80,6 +87,7 @@ export function createMockModel(behavior: MockBehavior = "competent") {
       if (!results.getWithdrawal) {
         return {
           content: [
+            ...(hasTool(options, "findSimilarCases") ? [call("c6", "findSimilarCases", {})] : []),
             call("c1", "getWithdrawal", {}),
             call("c2", "getAccount", {}),
             call("c3", "checkAddress", {}),
@@ -96,6 +104,7 @@ export function createMockModel(behavior: MockBehavior = "competent") {
           account: results.getAccount,
           address: results.checkAddress,
           activity: results.getRecentActivity,
+          precedents: results.findSimilarCases,
         };
         return { content: [call("c5", "proposeAction", judge(facts, behavior))], finishReason: toolsFinish, usage, warnings: [] };
       }
