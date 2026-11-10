@@ -8,7 +8,9 @@ export interface PolicyVerdict {
 }
 
 export function evaluatePolicy(ctx: PolicyContext): PolicyVerdict {
-  const findings = RULES.map((r) => r.evaluate(ctx)).filter((f): f is Finding => f !== null);
+  const findings = RULES.filter((r) => !ctx.config.disabledRules.includes(r.id))
+    .map((r) => r.evaluate(ctx))
+    .filter((f): f is Finding => f !== null);
   const floor = findings.reduce<Action>((acc, f) => maxAction(acc, f.action), "release");
   return { floor, findings };
 }

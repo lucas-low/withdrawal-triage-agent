@@ -10,7 +10,7 @@ const EnvSchema = z.object({
   /** 0 keeps local-model evals as repeatable as the model allows. */
   MODEL_TEMPERATURE: z.coerce.number().min(0).max(2).default(0),
   MODEL: z.string().default("claude-sonnet-5-5"),
-  MOCK_MODEL_BEHAVIOR: z.enum(["competent", "lenient", "gullible", "broken", "silent", "slow"]).default("competent"),
+  MOCK_MODEL_BEHAVIOR: z.enum(["competent", "lenient", "gullible", "forgetful", "broken", "silent", "slow"]).default("competent"),
   ANTHROPIC_API_KEY: z.string().optional(),
   DB_PATH: z.string().default("triage.db"),
   PORT: int(3000),
@@ -26,6 +26,11 @@ const EnvSchema = z.object({
   OTLP_ENDPOINT: z.string().url().optional(),
   /** Extra headers as `k=v,k2=v2`, for example `authorization=Basic ...` for Langfuse. */
   OTLP_HEADERS: z.string().optional(),
+  /** quarantine: the agent never sees the note, only a classifier verdict. passthrough: the agent reads the note (kept for comparison evals). */
+  NOTE_HANDLING: z.enum(["quarantine", "passthrough"]).default("quarantine"),
+  /** Model name for the quarantined note classifier. Defaults to MODEL. Mock provider uses a scripted classifier. */
+  SCREEN_MODEL: z.string().optional(),
+  MOCK_SCREEN_BEHAVIOR: z.enum(["blind", "paranoid", "heuristic"]).default("heuristic"),
   LOG_LEVEL: z.enum(["silent", "info", "debug"]).default("info"),
 });
 
@@ -45,6 +50,9 @@ export interface Config {
   fourEyesThresholdUsd: number;
   logLevel: "silent" | "info" | "debug";
   clockPin?: string;
+  noteHandling: "quarantine" | "passthrough";
+  screenModel?: string;
+  mockScreenBehavior: "blind" | "paranoid" | "heuristic";
   otlpEndpoint?: string;
   otlpHeaders: Record<string, string>;
 }
@@ -94,6 +102,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fourEyesThresholdUsd: e.FOUR_EYES_THRESHOLD_USD,
     logLevel: e.LOG_LEVEL,
     clockPin: e.CLOCK_PIN,
+    noteHandling: e.NOTE_HANDLING,
+    screenModel: e.SCREEN_MODEL,
+    mockScreenBehavior: e.MOCK_SCREEN_BEHAVIOR,
     otlpEndpoint: e.OTLP_ENDPOINT,
     otlpHeaders: Object.fromEntries(
       (e.OTLP_HEADERS ?? "")

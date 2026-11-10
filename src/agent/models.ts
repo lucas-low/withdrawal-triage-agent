@@ -2,7 +2,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 import type { Config } from "../config";
-import { createMockModel } from "./mock-model";
+import { createMockModel, createMockScreenModel } from "./mock-model";
 
 type ModelConfig = Pick<Config, "modelProvider" | "model" | "mockBehavior" | "anthropicApiKey" | "ollamaUrl">;
 
@@ -20,4 +20,11 @@ export function createModel(config: ModelConfig): { model: LanguageModel; name: 
     case "anthropic":
       return { model: createAnthropic({ apiKey: config.anthropicApiKey })(config.model), name: config.model };
   }
+}
+
+/** Model for the quarantined note classifier. Same provider as the agent, optionally a different model. */
+export function createScreenModel(config: ModelConfig & Pick<Config, "screenModel" | "mockScreenBehavior">): LanguageModel {
+  if (config.modelProvider === "mock")
+    return createMockScreenModel(config.mockScreenBehavior === "heuristic" ? "blind" : config.mockScreenBehavior);
+  return createModel({ ...config, model: config.screenModel ?? config.model }).model;
 }

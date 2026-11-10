@@ -10,6 +10,8 @@ export interface PolicyConfig {
   velocityMax: number;
   blockedCountries: string[];
   fourEyesUsd: number;
+  /** Rule ids to skip. Only used by evals that simulate a gap in the rules. */
+  disabledRules: string[];
 }
 
 export const DEFAULT_POLICY: PolicyConfig = {
@@ -20,6 +22,7 @@ export const DEFAULT_POLICY: PolicyConfig = {
   velocityMax: 5,
   blockedCountries: ["KP", "IR"],
   fourEyesUsd: 25_000,
+  disabledRules: [],
 };
 
 export interface PolicyContext {

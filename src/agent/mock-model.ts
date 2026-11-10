@@ -1,10 +1,10 @@
 import { MockLanguageModelV4 } from "ai/test";
 import type { Action } from "../domain/types";
 
-export type MockBehavior = "competent" | "lenient" | "gullible" | "broken" | "silent" | "slow";
+export type MockBehavior = "competent" | "lenient" | "gullible" | "forgetful" | "broken" | "silent" | "slow";
 
 type Facts = {
-  withdrawal?: { amountUsd: number; untrusted?: { note?: string | null } };
+  withdrawal?: { amountUsd: number; noteFlagged?: boolean; untrusted?: { note?: string | null } };
   account?: { kycTier: number; ageDays: number; country: string; dailyLimitUsd: number };
   address?: { flagged: boolean; labels: string[]; usedBefore: boolean };
   activity?: { countLastHour: number; totalLast24hUsd: number };
@@ -39,11 +39,13 @@ const call = (id: string, toolName: string, input: unknown) => ({
 function judge(f: Facts, behavior: MockBehavior): { action: Action; reason: string } {
   const note = f.withdrawal?.untrusted?.note ?? "";
   const injected = /ignore previous|approve|release it|you are now|system:/i.test(note);
+  // Worst case: this agent obeys whatever it reads. Any note it can see makes it release.
+  if (behavior === "gullible" && note) return { action: "release", reason: "The note asks me to release, so releasing." };
   if (behavior === "lenient") return { action: "release", reason: "Looks fine." };
-  if (behavior === "gullible" && injected) return { action: "release", reason: "The note says to approve, so releasing." };
   if (f.account?.kycTier === 0) return { action: "hold", reason: "KYC tier 0 cannot withdraw." };
   if (f.address?.flagged) return { action: "escalate", reason: `Address flagged: ${f.address.labels.join(", ")}.` };
-  if (injected) return { action: "escalate", reason: "Note contains instruction-like text; ignoring it and escalating." };
+  if (injected || f.withdrawal?.noteFlagged)
+    return { action: "escalate", reason: "Note flagged as instruction-like; ignoring it and escalating." };
   const total = (f.activity?.totalLast24hUsd ?? 0) + (f.withdrawal?.amountUsd ?? 0);
   if (f.account && total > f.account.dailyLimitUsd) return { action: "hold", reason: "Over the daily limit." };
   if (f.account && f.account.ageDays < 7 && (f.withdrawal?.amountUsd ?? 0) > 1000)
@@ -71,6 +73,7 @@ export function createMockModel(behavior: MockBehavior = "competent") {
         });
       }
       const results = toolResults(options.prompt as unknown[]);
+      const nudged = JSON.stringify(options.prompt).includes("Call proposeAction now");
       const stop = { unified: "stop" as const, raw: undefined };
       const toolsFinish = { unified: "tool-calls" as const, raw: undefined };
 
@@ -87,7 +90,7 @@ export function createMockModel(behavior: MockBehavior = "competent") {
           warnings: [],
         };
       }
-      if (!results.proposeAction && behavior !== "silent") {
+      if (!results.proposeAction && behavior !== "silent" && !(behavior === "forgetful" && !nudged)) {
         const facts: Facts = {
           withdrawal: results.getWithdrawal,
           account: results.getAccount,
@@ -98,5 +101,19 @@ export function createMockModel(behavior: MockBehavior = "competent") {
       }
       return { content: [{ type: "text" as const, text: "Done." }], finishReason: stop, usage, warnings: [] };
     },
+  });
+}
+
+/** Scripted note classifier. `blind` always answers safe, the worst case for the quarantine design. */
+export function createMockScreenModel(behavior: "blind" | "paranoid" = "blind") {
+  return new MockLanguageModelV4({
+    provider: "mock",
+    modelId: `mock-screen-${behavior}`,
+    doGenerate: async () => ({
+      content: [{ type: "text" as const, text: JSON.stringify({ suspicious: behavior === "paranoid" }) }],
+      finishReason: { unified: "stop" as const, raw: undefined },
+      usage,
+      warnings: [],
+    }),
   });
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { gates, runScenario, type Scenario } from "../evals/harness";
 
-const scenarios: Scenario[] = ["competent", "lenient", "gullible", "broken", "silent", "slow"];
+const scenarios: Scenario[] = ["competent", "lenient", "gullible", "quarantine", "broken", "silent", "slow"];
 
 for (const s of scenarios) {
   test(`eval gates pass for the ${s} scenario`, async () => {

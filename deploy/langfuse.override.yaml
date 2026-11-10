@@ -1,0 +1,5 @@
+# Moves the Langfuse UI off port 3000, which our own API uses.
+services:
+  langfuse-web:
+    ports: !override
+      - "3001:3000"

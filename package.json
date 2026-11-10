@@ -26,7 +26,10 @@
     "format": "biome check --write .",
     "check": "bun run typecheck && bun run lint && bun test && bun run eval",
     "obs:up": "deploy/compose.sh up -d",
-    "obs:down": "deploy/compose.sh down"
+    "obs:down": "deploy/compose.sh down",
+    "langfuse:up": "deploy/langfuse-up.sh",
+    "langfuse:down": "deploy/compose.sh -p langfuse --env-file deploy/langfuse.env -f deploy/langfuse.compose.upstream.yaml -f deploy/langfuse.override.yaml down",
+    "redteam": "bun run evals/redteam.ts"
   },
   "bin": {
     "withdrawal-triage": "src/cli/index.ts"

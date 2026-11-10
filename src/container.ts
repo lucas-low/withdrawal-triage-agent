@@ -2,16 +2,19 @@ import { SqliteAuditLog } from "./adapters/audit";
 import { MockChainClient } from "./adapters/chain.mock";
 import { openDatabase, SqliteStore } from "./adapters/sqlite";
 import { consoleSink, createTracer, OtlpSink, SqliteSpanSink } from "./adapters/tracer";
-import { createModel } from "./agent/models";
+import { createModel, createScreenModel } from "./agent/models";
 import { TriageService } from "./agent/triage";
 import { fixedClock } from "./clock";
 import type { Config } from "./config";
+import { combineScreens, heuristicScreen, llmScreen } from "./guardrails/note-screen";
+import type { PolicyConfig } from "./policy/rules";
 import { type Clock, systemClock, type Tracer } from "./ports";
 import { ReviewService } from "./workflow/review";
 
 export interface Overrides {
   clock?: Clock;
   tracer?: Tracer;
+  policy?: PolicyConfig;
   dbPath?: string;
 }
 
@@ -30,7 +33,26 @@ export function createApp(config: Config, o: Overrides = {}) {
   const tracer = o.tracer ?? tracerImpl;
   const { model, name } = createModel(config);
 
-  const triage = new TriageService({ repo: store, audit, chain, clock, tracer, model, modelName: name, config });
+  const screen =
+    config.noteHandling === "quarantine"
+      ? combineScreens(
+          heuristicScreen,
+          llmScreen(createScreenModel(config), { temperature: config.temperature, timeoutMs: config.agentTimeoutMs }),
+        )
+      : heuristicScreen;
+  const triage = new TriageService({
+    policy: o.policy,
+    screen,
+    noteHandling: config.noteHandling,
+    repo: store,
+    audit,
+    chain,
+    clock,
+    tracer,
+    model,
+    modelName: name,
+    config,
+  });
   const review = new ReviewService({ repo: store, executor: store, audit, clock });
   return { config, db, store, audit, triage, review, clock, tracer: tracerImpl };
 }

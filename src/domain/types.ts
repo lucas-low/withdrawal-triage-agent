@@ -61,6 +61,8 @@ export interface Proposal {
   overridden: boolean;
   /** True when the agent failed and the system fell back to a fail-closed action. */
   degraded: boolean;
+  /** True when the agent skipped proposeAction and needed one forced follow-up turn. */
+  nudged: boolean;
   reason: string;
   findings: Finding[];
   requiredApprovals: number;

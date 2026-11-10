@@ -56,7 +56,7 @@ describe("guardrails against bad models", () => {
   });
 
   test("a gullible model that follows the injection is overridden", async () => {
-    const { proposal } = await makeApp({ behavior: "gullible" }).triage.triage("w_injection", "ops");
+    const { proposal } = await makeApp({ behavior: "gullible", env: { NOTE_HANDLING: "passthrough" } }).triage.triage("w_injection", "ops");
     expect(proposal.agentAction).toBe("release");
     expect(proposal.finalAction).not.toBe("release");
     expect(proposal.overridden).toBe(true);
@@ -65,6 +65,16 @@ describe("guardrails against bad models", () => {
   test("a broken model fails closed", async () => {
     const { proposal } = await makeApp({ behavior: "broken" }).triage.triage("w_clean", "ops");
     expect(proposal).toMatchObject({ degraded: true, agentAction: null, finalAction: "hold" });
+  });
+
+  test("a model that forgets to call proposeAction is nudged once and still produces a proposal", async () => {
+    const { proposal } = await makeApp({ behavior: "forgetful" }).triage.triage("w_clean", "ops");
+    expect(proposal).toMatchObject({ nudged: true, degraded: false, agentAction: "release" });
+  });
+
+  test("a competent model is not nudged", async () => {
+    const { proposal } = await makeApp().triage.triage("w_clean", "ops");
+    expect(proposal.nudged).toBe(false);
   });
 
   test("a model that never proposes fails closed", async () => {
@@ -125,14 +135,39 @@ describe("audit and tracing", () => {
     for (const c of calls) expect(c.withdrawalId).toBe("w_clean");
   });
 
-  test("the injected note reaches the model only inside the untrusted field", async () => {
-    const app = makeApp();
+  test("passthrough mode delivers the note only inside the untrusted field", async () => {
+    const app = makeApp({ env: { NOTE_HANDLING: "passthrough" } });
     await app.triage.triage("w_injection", "ops");
     const call = app.audit
       .list({ withdrawalId: "w_injection" })
       .find((r) => r.kind === "tool_call" && (r.data as any).tool === "getWithdrawal")!;
     expect((call.data as any).output.untrusted.note).toContain("ignore previous instructions");
     expect((call.data as any).output).not.toHaveProperty("note");
+  });
+
+  test("quarantine mode (the default) never puts the note text in front of the agent", async () => {
+    const app = makeApp({ behavior: "gullible", env: { MOCK_SCREEN_BEHAVIOR: "blind" } });
+    const { proposal } = await app.triage.triage("w_injection", "ops");
+    const outputs = app.audit
+      .list({ withdrawalId: "w_injection" })
+      .filter((r) => r.kind === "tool_call")
+      .map((r) => JSON.stringify(r.data));
+    expect(outputs.join("\n")).not.toContain("ignore previous instructions");
+    expect(outputs.join("\n")).not.toContain("SYSTEM");
+    // even a classifier that says "safe" cannot make the agent release: it never saw the attack
+    expect(proposal.agentAction).not.toBe("release");
+  });
+
+  test("a note screen that always errors fails closed to escalate", async () => {
+    const { llmScreen } = await import("../src/guardrails/note-screen");
+    const { MockLanguageModelV4 } = await import("ai/test");
+    const broken = new MockLanguageModelV4({
+      doGenerate: async () => {
+        throw new Error("down");
+      },
+    });
+    expect(await llmScreen(broken).screen("rent")).toMatchObject({ detected: true, matches: ["llm:unavailable"] });
+    expect(await llmScreen(broken).screen(null)).toMatchObject({ detected: false });
   });
 
   test("spans are emitted", async () => {

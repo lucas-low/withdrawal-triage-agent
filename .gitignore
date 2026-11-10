@@ -2,5 +2,6 @@
 *.db
 *.db-*
 audit.jsonl
+deploy/langfuse.env
 evals/out
 node_modules
