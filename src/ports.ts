@@ -102,6 +102,24 @@ export interface Span {
   setAttributes(attrs: Record<string, unknown>): void;
 }
 
+/** A finished span. Times are epoch milliseconds. */
+export interface SpanRecord {
+  spanId: string;
+  traceId: string;
+  parentId: string | null;
+  name: string;
+  startMs: number;
+  durationMs: number;
+  status: "ok" | "error";
+  attrs: Record<string, unknown>;
+}
+
+export interface SpanSink {
+  export(span: SpanRecord): void;
+  /** Wait for any buffered spans to be delivered. */
+  flush?(): Promise<void>;
+}
+
 export interface Tracer {
   span<T>(name: string, attrs: Record<string, unknown>, fn: (span: Span) => Promise<T>): Promise<T>;
 }

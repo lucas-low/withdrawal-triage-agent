@@ -5,7 +5,10 @@ import type { Principal, Role } from "./domain/types";
 const int = (def: number) => z.coerce.number().int().positive().default(def);
 
 const EnvSchema = z.object({
-  MODEL_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
+  MODEL_PROVIDER: z.enum(["mock", "anthropic", "ollama"]).default("mock"),
+  OLLAMA_URL: z.string().url().default("http://127.0.0.1:11434/v1"),
+  /** 0 keeps local-model evals as repeatable as the model allows. */
+  MODEL_TEMPERATURE: z.coerce.number().min(0).max(2).default(0),
   MODEL: z.string().default("claude-sonnet-5-5"),
   MOCK_MODEL_BEHAVIOR: z.enum(["competent", "lenient", "gullible", "broken", "silent", "slow"]).default("competent"),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -19,11 +22,17 @@ const EnvSchema = z.object({
   FOUR_EYES_THRESHOLD_USD: int(25_000),
   /** ISO timestamp that pins the clock, for deterministic demos against the seed data. */
   CLOCK_PIN: z.string().datetime().optional(),
+  /** Base URL of an OTLP/HTTP collector, for example http://localhost:4318. Spans always go to SQLite too. */
+  OTLP_ENDPOINT: z.string().url().optional(),
+  /** Extra headers as `k=v,k2=v2`, for example `authorization=Basic ...` for Langfuse. */
+  OTLP_HEADERS: z.string().optional(),
   LOG_LEVEL: z.enum(["silent", "info", "debug"]).default("info"),
 });
 
 export interface Config {
-  modelProvider: "mock" | "anthropic";
+  modelProvider: "mock" | "anthropic" | "ollama";
+  ollamaUrl: string;
+  temperature: number;
   model: string;
   mockBehavior: z.infer<typeof EnvSchema>["MOCK_MODEL_BEHAVIOR"];
   anthropicApiKey?: string;
@@ -36,6 +45,8 @@ export interface Config {
   fourEyesThresholdUsd: number;
   logLevel: "silent" | "info" | "debug";
   clockPin?: string;
+  otlpEndpoint?: string;
+  otlpHeaders: Record<string, string>;
 }
 
 const fail = (code: ErrorCode, msg: string): never => {
@@ -69,6 +80,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   return {
     modelProvider: e.MODEL_PROVIDER,
+    ollamaUrl: e.OLLAMA_URL,
+    temperature: e.MODEL_TEMPERATURE,
     model: e.MODEL,
     mockBehavior: e.MOCK_MODEL_BEHAVIOR,
     anthropicApiKey: e.ANTHROPIC_API_KEY,
@@ -81,5 +94,15 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fourEyesThresholdUsd: e.FOUR_EYES_THRESHOLD_USD,
     logLevel: e.LOG_LEVEL,
     clockPin: e.CLOCK_PIN,
+    otlpEndpoint: e.OTLP_ENDPOINT,
+    otlpHeaders: Object.fromEntries(
+      (e.OTLP_HEADERS ?? "")
+        .split(",")
+        .filter(Boolean)
+        .map((kv) => {
+          const i = kv.indexOf("=");
+          return [kv.slice(0, i).trim(), kv.slice(i + 1).trim()];
+        }),
+    ),
   };
 }

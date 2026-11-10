@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
+import { loadTrace } from "../adapters/tracer";
 import { loadConfig } from "../config";
 import { createApp } from "../container";
 import { AppError } from "../domain/errors";
@@ -20,6 +21,7 @@ Usage: bun run cli <command> [options]
   review --as <reviewer>        walk the pending proposals and approve or reject each
   decide <proposalId> <approve|reject> --as <reviewer> [--comment "..."]
   show <proposalId>             proposal detail and its audit trail
+  trace <proposalId|traceId>    span tree with timings, token use and errors
   audit verify                  check the hash chain
   expire                        mark overdue proposals expired
   serve                         start the HTTP API and review console
@@ -117,6 +119,29 @@ async function main() {
           ...app.audit.list({ proposalId: p.id }).map((r) => [String(r.seq), r.ts, r.kind, r.actor]),
         ]),
       );
+      return;
+    }
+    case "trace": {
+      const arg = rest[0] ?? "";
+      const traceId = app.store.getProposal(arg)?.traceId ?? arg;
+      const spans = loadTrace(app.db, traceId);
+      if (!spans.length) throw new AppError("not_found", `no spans for ${arg}`);
+      const children = (parent: string | null) => spans.filter((s) => s.parentId === parent);
+      const t0 = spans[0]!.startMs;
+      const walk = (parent: string | null, depth: number) => {
+        for (const sp of children(parent)) {
+          const extra = ["gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens", "steps", "finalAction", "error", "agentError"]
+            .filter((k) => sp.attrs[k] !== undefined)
+            .map((k) => `${k.replace("gen_ai.usage.", "")}=${sp.attrs[k]}`)
+            .join(" ");
+          console.log(
+            `${" ".repeat(depth * 2)}${sp.status === "ok" ? "" : red("! ")}${sp.name}  +${Math.round(sp.startMs - t0)}ms  ${sp.durationMs}ms  ${dim(extra)}`,
+          );
+          walk(sp.spanId, depth + 1);
+        }
+      };
+      console.log(`${bold("trace")} ${traceId}`);
+      walk(null, 0);
       return;
     }
     case "audit": {

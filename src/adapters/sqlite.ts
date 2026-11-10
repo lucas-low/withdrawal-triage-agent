@@ -30,6 +30,11 @@ const MIGRATIONS: string[] = [
    );
    CREATE INDEX idx_audit_proposal ON audit(proposal_id);
    CREATE INDEX idx_audit_withdrawal ON audit(withdrawal_id);`,
+  `CREATE TABLE spans (
+     span_id TEXT PRIMARY KEY, trace_id TEXT NOT NULL, parent_id TEXT, name TEXT NOT NULL,
+     start_ms REAL NOT NULL, duration_ms REAL NOT NULL, status TEXT NOT NULL, attrs TEXT NOT NULL
+   );
+   CREATE INDEX idx_spans_trace ON spans(trace_id, start_ms);`,
 ];
 
 export function openDatabase(path: string): Database {

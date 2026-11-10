@@ -1,4 +1,5 @@
 import { generateText, type LanguageModel, stepCountIs } from "ai";
+import { newTraceId } from "../adapters/tracer";
 import type { Config } from "../config";
 import { conflict, notFound } from "../domain/errors";
 import type { Proposal } from "../domain/types";
@@ -19,7 +20,7 @@ export interface TriageDeps {
   tracer: Tracer;
   model: LanguageModel;
   modelName: string;
-  config: Pick<Config, "agentMaxSteps" | "agentTimeoutMs" | "proposalTtlMs" | "fourEyesThresholdUsd">;
+  config: Pick<Config, "agentMaxSteps" | "agentTimeoutMs" | "proposalTtlMs" | "fourEyesThresholdUsd" | "temperature">;
   policy?: PolicyConfig;
 }
 
@@ -42,7 +43,7 @@ export class TriageService {
     if (existing?.status === "approved") throw conflict(`withdrawal ${withdrawalId} already has an approved proposal`);
     if (withdrawal.status !== "pending_review") throw conflict(`withdrawal ${withdrawalId} is ${withdrawal.status}, not pending_review`);
 
-    const traceId = newId("trace");
+    const traceId = newTraceId();
     return this.d.tracer.span("triage", { withdrawalId, traceId, model: this.d.modelName }, async (span) => {
       audit.append({
         kind: "triage_started",
@@ -88,20 +89,37 @@ export class TriageService {
     });
 
     // 2. The agent loop, bounded by step count and wall clock. Failure is a normal outcome, not an exception.
-    const ctx: RunContext = { withdrawalId, traceId, repo, chain, audit, clock, slot: {} };
+    const ctx: RunContext = { withdrawalId, traceId, repo, chain, audit, clock, tracer, slot: {} };
     let steps = 0;
     let tokens: number | null = null;
     try {
-      const result = await tracer.span("agent", { traceId, maxSteps: config.agentMaxSteps }, () =>
-        generateText({
-          model: this.d.model,
-          system: SYSTEM_PROMPT,
-          prompt: userPrompt(withdrawalId),
-          tools: buildTools(ctx),
-          stopWhen: stepCountIs(config.agentMaxSteps),
-          abortSignal: AbortSignal.timeout(config.agentTimeoutMs),
-          maxRetries: 1,
-        }),
+      const result = await tracer.span(
+        "agent",
+        {
+          traceId,
+          "gen_ai.request.model": this.d.modelName,
+          "gen_ai.request.temperature": config.temperature,
+          maxSteps: config.agentMaxSteps,
+          promptVersion: PROMPT_VERSION,
+        },
+        async (agentSpan) => {
+          const r = await generateText({
+            model: this.d.model,
+            system: SYSTEM_PROMPT,
+            prompt: userPrompt(withdrawalId),
+            tools: buildTools(ctx),
+            stopWhen: stepCountIs(config.agentMaxSteps),
+            abortSignal: AbortSignal.timeout(config.agentTimeoutMs),
+            temperature: config.temperature,
+            maxRetries: 1,
+          });
+          agentSpan.setAttributes({
+            "gen_ai.usage.input_tokens": r.usage.inputTokens ?? 0,
+            "gen_ai.usage.output_tokens": r.usage.outputTokens ?? 0,
+            steps: r.steps.length,
+          });
+          return r;
+        },
       );
       steps = result.steps.length;
       tokens = (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0);

@@ -1,7 +1,7 @@
 import { SqliteAuditLog } from "./adapters/audit";
 import { MockChainClient } from "./adapters/chain.mock";
 import { openDatabase, SqliteStore } from "./adapters/sqlite";
-import { consoleTracer, noopTracer } from "./adapters/tracer";
+import { consoleSink, createTracer, OtlpSink, SqliteSpanSink } from "./adapters/tracer";
 import { createModel } from "./agent/models";
 import { TriageService } from "./agent/triage";
 import { fixedClock } from "./clock";
@@ -23,12 +23,16 @@ export function createApp(config: Config, o: Overrides = {}) {
   const store = new SqliteStore(db, nowIso);
   const audit = new SqliteAuditLog(db, nowIso);
   const chain = new MockChainClient();
-  const tracer = o.tracer ?? (config.logLevel === "debug" ? consoleTracer() : noopTracer);
+  const sinks = [new SqliteSpanSink(db)];
+  if (config.logLevel === "debug") sinks.push(consoleSink() as never);
+  if (config.otlpEndpoint) sinks.push(new OtlpSink(config.otlpEndpoint, config.otlpHeaders) as never);
+  const tracerImpl = createTracer(sinks);
+  const tracer = o.tracer ?? tracerImpl;
   const { model, name } = createModel(config);
 
   const triage = new TriageService({ repo: store, audit, chain, clock, tracer, model, modelName: name, config });
   const review = new ReviewService({ repo: store, executor: store, audit, clock });
-  return { config, db, store, audit, triage, review, clock };
+  return { config, db, store, audit, triage, review, clock, tracer: tracerImpl };
 }
 
 export type App = ReturnType<typeof createApp>;

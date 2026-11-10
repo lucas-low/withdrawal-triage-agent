@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { memoryTracer } from "../src/adapters/tracer";
+import { createTracer, memorySink } from "../src/adapters/tracer";
 import { makeApp } from "./helpers";
 
 describe("triage with the competent mock model", () => {
@@ -136,13 +136,14 @@ describe("audit and tracing", () => {
   });
 
   test("spans are emitted", async () => {
-    const tracer = memoryTracer();
+    const sink = memorySink();
+    const tracer = createTracer([sink]);
     const base = makeApp();
     const { createApp } = await import("../src/container");
     const { seed } = await import("../src/seed");
     const app = createApp(base.config, { clock: base.clock, tracer, dbPath: ":memory:" });
     seed(app.store);
     await app.triage.triage("w_clean", "ops");
-    expect(tracer.spans.map((s) => s.name)).toEqual(expect.arrayContaining(["policy", "agent", "triage"]));
+    expect(sink.spans.map((s) => s.name)).toEqual(expect.arrayContaining(["policy", "agent", "triage"]));
   });
 });

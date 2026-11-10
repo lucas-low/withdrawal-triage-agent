@@ -27,6 +27,14 @@ bun run serve                          # review console at http://localhost:3000
 
 No API key is needed. `MODEL_PROVIDER` defaults to `mock`. See [`.env.example`](.env.example).
 
+To use a local model through Ollama (any model with tool support):
+
+```sh
+MODEL_PROVIDER=ollama MODEL=qwen2.5:32b bun run cli triage w_clean
+MODEL_PROVIDER=ollama bun run eval -- --live --models qwen2.5:14b,qwen2.5:32b --runs 3
+bun run cli trace <proposalId>         # span tree: policy, agent, each tool call, tokens
+```
+
 ## Commands
 
 | Command | What it does |
@@ -40,7 +48,8 @@ No API key is needed. `MODEL_PROVIDER` defaults to `mock`. See [`.env.example`](
 | `bun run cli audit verify` | Check the hash chain |
 | `bun run serve` | HTTP API and review console |
 | `bun test` | Unit, integration, API and CLI tests |
-| `bun run eval` | Offline eval gates (add `-- --live` for a real model) |
+| `bun run cli trace <proposalId>` | Span tree with timings and token use |
+| `bun run eval` | Offline eval gates. `-- --live --models a,b --runs N` compares real models |
 | `bun run check` | Typecheck, lint, tests and evals |
 
 ## Architecture in one picture

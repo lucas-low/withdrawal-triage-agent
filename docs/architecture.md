@@ -98,4 +98,6 @@ A rejected or expired proposal leaves the withdrawal in `pending_review`, so it 
 
 ## Observability
 
-Every tool call, policy result, agent proposal, failure, review decision and execution is an audit record carrying a `traceId`. `LOG_LEVEL=debug` also prints JSON spans (`triage`, `policy`, `agent`) with timings. The `Tracer` port is where a Langfuse or OpenTelemetry adapter goes.
+Every tool call, policy result, agent proposal, failure, review decision and execution is an audit record carrying a `traceId`. The same id is the OpenTelemetry trace id, so an audit trail and its span tree line up.
+
+Spans are nested (`triage` > `policy`, `agent` > `tool.*`) and carry timings, errors, and `gen_ai.*` attributes for model, temperature and token usage. They are always stored in SQLite and shown by `bun run cli trace <proposalId>`. Setting `OTLP_ENDPOINT` also exports them as OTLP/HTTP JSON to an OpenTelemetry collector or a Langfuse instance (`<host>/api/public/otel`). Export is best effort and never fails a triage. `LOG_LEVEL=debug` also prints spans as JSON lines.
