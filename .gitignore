@@ -1,3 +1,6 @@
-node_modules
-audit.jsonl
 .env
+*.db
+*.db-*
+audit.jsonl
+evals/out
+node_modules
