@@ -7,6 +7,7 @@ Rules live in `src/policy/rules.ts` and are pure functions of a `PolicyContext`.
 | `KYC_TIER_0` | hold | The account has not completed KYC |
 | `OVER_DAILY_LIMIT` | hold | This amount plus completed or released withdrawals in the last 24h exceeds the daily limit |
 | `FLAGGED_ADDRESS` | escalate | Chain analytics flags the destination |
+| `UNVERIFIED_CONTRACT` | hold | Destination is a contract with no verified source on Sourcify. A failed lookup does not trigger it |
 | `BLOCKED_COUNTRY` | escalate | Account country is in `blockedCountries` (KP, IR) |
 | `NEW_ACCOUNT_LARGE` | hold | Account is under 7 days old and the amount is over 1,000 USD |
 | `NEW_ADDRESS_LARGE` | hold | No prior completed or released withdrawal to this address and the amount is over 10,000 USD |

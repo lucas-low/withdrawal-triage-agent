@@ -103,6 +103,16 @@ export const RULES: Rule[] = [
         : null,
   },
   {
+    id: "UNVERIFIED_CONTRACT",
+    description: "Destination is a contract with no verified source, so nobody can read what it does with the funds.",
+    evaluate: ({ addressRisk }) =>
+      addressRisk.facts?.contract?.verified === false
+        ? finding("UNVERIFIED_CONTRACT", "hold", "Destination is a contract with no verified source on Sourcify.", {
+            address: addressRisk.address,
+          })
+        : null,
+  },
+  {
     id: "BLOCKED_COUNTRY",
     description: "Account country is on the blocked list.",
     evaluate: ({ account, config }) =>

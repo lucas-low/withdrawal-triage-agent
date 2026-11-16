@@ -126,7 +126,7 @@ async function main() {
     }
     case "chain": {
       if (!rest[0]) throw new AppError("invalid_request", "usage: chain <address>");
-      const { OnchainChainClient, loadSanctionList } = await import("../adapters/chain.onchain");
+      const { OnchainChainClient, loadSanctionList } = await import("wallet-guard");
       const client = new OnchainChainClient(loadSanctionList(config.ofacListPath), { url: config.ethRpcUrl });
       console.log(JSON.stringify(await client.addressRisk(rest[0]), null, 2));
       return;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { loadSanctionList, OnchainChainClient, parseSanctionList, readAddressFacts } from "../src/adapters/chain.onchain";
+import { loadSanctionList, OnchainChainClient } from "wallet-guard";
 import { fixedClock } from "../src/clock";
 import { loadConfig } from "../src/config";
 import { createApp } from "../src/container";
@@ -21,50 +21,16 @@ const rpc = (answers: Record<string, string>): typeof fetch =>
   }) as unknown as typeof fetch;
 
 describe("sanction list", () => {
-  test("parses addresses, ignores comments and junk, compares case-insensitively", () => {
-    const set = parseSanctionList(`# header\n${SANCTIONED}\nnot-an-address\n0x123\n`);
-    expect(set.size).toBe(1);
-    expect(set.has(SANCTIONED.toLowerCase())).toBe(true);
-  });
   test("the bundled OFAC file loads and has real entries", () => {
-    const set = loadSanctionList();
+    const set = loadSanctionList("data/ofac-eth.txt");
     expect(set.size).toBeGreaterThan(100);
     expect(set.has(SANCTIONED.toLowerCase())).toBe(true);
   });
 });
 
-describe("rpc facts", () => {
-  test("reads contract flag, nonce and balance", async () => {
-    const f = await readAddressFacts(CLEAN, {
-      url: "x",
-      fetch: rpc({ eth_getCode: "0x", eth_getTransactionCount: "0x1752", eth_getBalance: "0xde0b6b3a7640000" }),
-    });
-    expect(f).toEqual({ isContract: false, txCount: 0x1752, balanceWei: "1000000000000000000" });
-    const c = await readAddressFacts(CLEAN, {
-      url: "x",
-      fetch: rpc({ eth_getCode: "0x6080", eth_getTransactionCount: "0x1", eth_getBalance: "0x0" }),
-    });
-    expect(c.isContract).toBe(true);
-  });
-  test("an EIP-7702 delegated EOA is not a contract and records its delegate", async () => {
-    const code = "0xef01005a7fc11397e9a8ad41bf10bf13f22b0a63f96f6d";
-    const f = await readAddressFacts(CLEAN, {
-      url: "x",
-      fetch: rpc({ eth_getCode: code, eth_getTransactionCount: "0x1", eth_getBalance: "0x0" }),
-    });
-    expect(f).toMatchObject({ isContract: false, delegatedTo: "0x5a7fc11397e9a8ad41bf10bf13f22b0a63f96f6d" });
-  });
-  test("rpc errors and http errors throw", async () => {
-    await expect(readAddressFacts(CLEAN, { url: "x", fetch: rpc({}) })).rejects.toThrow(/nope/);
-    await expect(
-      readAddressFacts(CLEAN, { url: "x", fetch: (async () => new Response("", { status: 503 })) as unknown as typeof fetch }),
-    ).rejects.toThrow(/503/);
-  });
-});
-
 describe("OnchainChainClient", () => {
   const ok = rpc({ eth_getCode: "0x", eth_getTransactionCount: "0x2", eth_getBalance: "0x0" });
-  const list = parseSanctionList(SANCTIONED);
+  const list = new Set([SANCTIONED.toLowerCase()]);
   test("flags a sanctioned address and attaches facts", async () => {
     const r = await new OnchainChainClient(list, { url: "x", fetch: ok }).addressRisk(SANCTIONED.toLowerCase());
     expect(r).toMatchObject({ flagged: true, labels: ["ofac_sanctioned"], status: "ok", facts: { txCount: 2 } });
@@ -110,6 +76,16 @@ describe("policy fails closed on chain data problems", () => {
     injection: { detected: false, matches: [] },
     now: new Date(SEED_NOW),
     config: DEFAULT_POLICY,
+  });
+  test("a contract with no verified source holds, a verified or unchecked one does not", () => {
+    const contract = (verified?: boolean) =>
+      evaluatePolicy(
+        base({ facts: { isContract: true, txCount: 1, balanceWei: "0", contract: { codeSize: 10, hasSelfdestruct: false, verified } } }),
+      );
+    expect(contract(false).findings.map((f) => f.ruleId)).toContain("UNVERIFIED_CONTRACT");
+    expect(contract(false).floor).toBe("hold");
+    expect(contract(true).floor).toBe("release");
+    expect(contract(undefined).floor).toBe("release");
   });
   test("unavailable holds, invalid holds, ok releases", () => {
     expect(evaluatePolicy(base({ status: "unavailable" })).findings.map((f) => f.ruleId)).toEqual(["CHAIN_DATA_UNAVAILABLE"]);

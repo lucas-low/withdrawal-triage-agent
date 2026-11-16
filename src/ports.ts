@@ -1,3 +1,4 @@
+import type { ContractFacts } from "wallet-guard";
 import type { Account, Action, Proposal, ProposalStatus, Withdrawal, WithdrawalStatus } from "./domain/types";
 
 export interface Clock {
@@ -95,6 +96,8 @@ export interface AddressFacts {
   /** Outgoing transaction count (nonce). Zero for an address that has never sent anything. */
   txCount: number;
   balanceWei: string;
+  /** Bytecode, proxy and source-verification facts for a contract, read by wallet-guard. */
+  contract?: ContractFacts;
 }
 
 export interface AddressRisk {

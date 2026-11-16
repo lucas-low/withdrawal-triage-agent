@@ -14,6 +14,7 @@
     "@ai-sdk/anthropic": "^4.0.99",
     "@ai-sdk/openai-compatible": "^3.0.87",
     "ai": "^7.0.166",
+    "wallet-guard": "github:lucas-low/wallet-guard#fa5c73c",
     "zod": "^4.6.7"
   },
   "scripts": {

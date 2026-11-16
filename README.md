@@ -15,7 +15,7 @@ It runs fully offline on a scripted mock model, and against local models through
 | **Human gate** | The agent has no path to execution. `ReviewService.decide()` is the only code that applies an action. Four-eyes for large or escalated cases, expiry, idempotent execution, optimistic locking. |
 | **Prompt-injection defence** | The agent never sees the customer's free-text note. A separate tool-less classifier returns one boolean. Measured, not assumed (see below). |
 | **Retrieval** | `findSimilarCases` looks up past cases reviewers decided, using cosine similarity over a feature vector. Structured fields only, so retrieved data cannot carry instructions. Decided cases become precedents automatically. |
-| **Real chain data** | OFAC sanctioned-address list plus live Ethereum JSON-RPC (contract vs EOA, nonce, EIP-7702 delegation). Provider failure holds instead of guessing. |
+| **Real chain data** | OFAC sanctioned-address list plus live Ethereum JSON-RPC (contract vs EOA, nonce, EIP-7702 delegation), read through [wallet-guard](https://github.com/lucas-low/wallet-guard), which also reports proxy kind and source verification for contract destinations. Provider failure holds instead of guessing. |
 | **Audit** | Hash-chained log. `audit verify` finds edited or deleted records. |
 | **Observability** | Nested spans with token usage, stored in SQLite and exported over OTLP. Verified against Jaeger and Langfuse. |
 | **Interfaces** | CLI, HTTP API with roles and rate limiting, and a small review console. |

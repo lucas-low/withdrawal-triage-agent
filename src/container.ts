@@ -1,6 +1,6 @@
+import { loadSanctionList, OnchainChainClient } from "wallet-guard";
 import { SqliteAuditLog } from "./adapters/audit";
 import { MockChainClient } from "./adapters/chain.mock";
-import { loadSanctionList, OnchainChainClient } from "./adapters/chain.onchain";
 import { openDatabase, SqliteStore } from "./adapters/sqlite";
 import { consoleSink, createTracer, OtlpSink, SqliteSpanSink } from "./adapters/tracer";
 import { createModel, createScreenModel } from "./agent/models";

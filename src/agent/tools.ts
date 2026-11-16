@@ -109,7 +109,12 @@ export function buildTools(ctx: RunContext) {
           usedBefore: ctx.repo.hasCompletedTo(w.accountId, w.address, w.id),
           status: risk.status,
           ...(risk.facts
-            ? { isContract: risk.facts.isContract, delegatedEoa: Boolean(risk.facts.delegatedTo), txCount: risk.facts.txCount }
+            ? {
+                isContract: risk.facts.isContract,
+                delegatedEoa: Boolean(risk.facts.delegatedTo),
+                txCount: risk.facts.txCount,
+                ...(risk.facts.contract ? { sourceVerified: risk.facts.contract.verified, proxy: risk.facts.contract.proxy?.kind } : {}),
+              }
             : {}),
         });
       },
